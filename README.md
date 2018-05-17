@@ -57,3 +57,5 @@ How can you avoid that InstanceAPrivate can communicate with InstanceBPrivate?
 $ ssh -J michael@$BastionHostIpAddressPublic $InstanceAPublicIpAddressPrivate
 curl http://$InstanceAPublicIpAddressPrivate
 ```
+
+> Hint: You need to create a peeringconnection and add a route table entry to each of the 8 route tables involved.
