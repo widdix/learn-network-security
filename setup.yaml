@@ -1,0 +1,148 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Network Security on AWS'
+Parameters:
+  DBMasterUserPassword:
+    Description: 'The master password for the DB instance.'
+    Type: String
+    NoEcho: true
+Resources:
+  VPC:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Parameters:
+        ClassB: 0
+      TemplateURL: 'https://s3-eu-west-1.amazonaws.com/widdix-aws-cf-templates-releases-eu-west-1/v6.15.0/vpc/vpc-2azs.yaml'
+  BastionHost:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Parameters:
+        ParentVPCStack: !GetAtt 'VPC.Outputs.StackName'
+        IAMUserSSHAccess: true
+      TemplateURL: 'https://s3-eu-west-1.amazonaws.com/widdix-aws-cf-templates-releases-eu-west-1/v6.15.0/vpc/vpc-ssh-bastion.yaml'
+  NatGatewayA:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Parameters:
+        ParentVPCStack: !GetAtt 'VPC.Outputs.StackName'
+        SubnetZone: A
+      TemplateURL: 'https://s3-eu-west-1.amazonaws.com/widdix-aws-cf-templates-releases-eu-west-1/v6.15.0/vpc/vpc-nat-gateway.yaml'
+  NatGatewayB:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Parameters:
+        ParentVPCStack: !GetAtt 'VPC.Outputs.StackName'
+        SubnetZone: B
+      TemplateURL: 'https://s3-eu-west-1.amazonaws.com/widdix-aws-cf-templates-releases-eu-west-1/v6.15.0/vpc/vpc-nat-gateway.yaml'
+  InstanceAPublic:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Parameters:
+        ParentVPCStack: !GetAtt 'VPC.Outputs.StackName'
+        ParentSSHBastionStack: !GetAtt 'BastionHost.Outputs.StackName'
+        IAMUserSSHAccess: true
+        Name: 'InstanceAPublic'
+        SubnetName: SubnetAPublic
+        UserData: |
+          yum install -y httpd24
+          service httpd start
+          chkconfig httpd on
+          echo "InstanceAPublic" > /var/www/html/index.html
+        IngressTcpPort1: 80
+      TemplateURL: 'https://s3-eu-west-1.amazonaws.com/widdix-aws-cf-templates-releases-eu-west-1/v6.15.0/ec2/ec2-auto-recovery.yaml'
+  InstanceAPrivate:
+    DependsOn: NatGatewayA
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Parameters:
+        ParentVPCStack: !GetAtt 'VPC.Outputs.StackName'
+        ParentSSHBastionStack: !GetAtt 'BastionHost.Outputs.StackName'
+        IAMUserSSHAccess: true
+        Name: 'InstanceAPrivate'
+        SubnetName: SubnetAPrivate
+        UserData: |
+          yum install -y httpd24
+          service httpd start
+          chkconfig httpd on
+          echo "InstanceAPrivate" > /var/www/html/index.html
+        IngressTcpPort1: 80
+      TemplateURL: 'https://s3-eu-west-1.amazonaws.com/widdix-aws-cf-templates-releases-eu-west-1/v6.15.0/ec2/ec2-auto-recovery.yaml'
+  InstanceBPublic:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Parameters:
+        ParentVPCStack: !GetAtt 'VPC.Outputs.StackName'
+        ParentSSHBastionStack: !GetAtt 'BastionHost.Outputs.StackName'
+        IAMUserSSHAccess: true
+        Name: 'InstanceBPublic'
+        SubnetName: SubnetBPublic
+        UserData: |
+          yum install -y httpd24
+          service httpd start
+          chkconfig httpd on
+          echo "InstanceBPublic" > /var/www/html/index.html
+        IngressTcpPort1: 80
+      TemplateURL: 'https://s3-eu-west-1.amazonaws.com/widdix-aws-cf-templates-releases-eu-west-1/v6.15.0/ec2/ec2-auto-recovery.yaml'
+  InstanceBPrivate:
+    DependsOn: NatGatewayB
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Parameters:
+        ParentVPCStack: !GetAtt 'VPC.Outputs.StackName'
+        ParentSSHBastionStack: !GetAtt 'BastionHost.Outputs.StackName'
+        IAMUserSSHAccess: true
+        Name: 'InstanceBPrivate'
+        SubnetName: SubnetBPrivate
+        UserData: |
+          yum install -y httpd24
+          service httpd start
+          chkconfig httpd on
+          echo "InstanceBPrivate" > /var/www/html/index.html
+        IngressTcpPort1: 80
+      TemplateURL: 'https://s3-eu-west-1.amazonaws.com/widdix-aws-cf-templates-releases-eu-west-1/v6.15.0/ec2/ec2-auto-recovery.yaml'
+  OtherVPC:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Parameters:
+        ClassB: 100
+      TemplateURL: 'https://s3-eu-west-1.amazonaws.com/widdix-aws-cf-templates-releases-eu-west-1/v6.15.0/vpc/vpc-2azs.yaml'
+  OtherNatGatewayA:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Parameters:
+        ParentVPCStack: !GetAtt 'OtherVPC.Outputs.StackName'
+        SubnetZone: A
+      TemplateURL: 'https://s3-eu-west-1.amazonaws.com/widdix-aws-cf-templates-releases-eu-west-1/v6.15.0/vpc/vpc-nat-gateway.yaml'
+  OtherInstanceAPrivate:
+    DependsOn: OtherNatGatewayA
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Parameters:
+        ParentVPCStack: !GetAtt 'OtherVPC.Outputs.StackName'
+        IAMUserSSHAccess: true
+        Name: 'OtherInstanceAPrivate'
+        SubnetName: SubnetAPrivate
+        UserData: |
+          yum install -y httpd24
+          service httpd start
+          chkconfig httpd on
+          echo "OtherInstanceAPrivate" > /var/www/html/index.html
+        IngressTcpPort1: 80
+      TemplateURL: 'https://s3-eu-west-1.amazonaws.com/widdix-aws-cf-templates-releases-eu-west-1/v6.15.0/ec2/ec2-auto-recovery.yaml'
+  DatabaseClient:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Parameters:
+        ParentVPCStack: !GetAtt 'VPC.Outputs.StackName'
+      TemplateURL: 'https://s3-eu-west-1.amazonaws.com/widdix-aws-cf-templates-releases-eu-west-1/v6.15.0/state/client-sg.yaml'
+  Database:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Parameters:
+        ParentVPCStack: !GetAtt 'VPC.Outputs.StackName'
+        ParentClientStack: !GetAtt 'DatabaseClient.Outputs.StackName'
+        ParentSSHBastionStack: !GetAtt 'BastionHost.Outputs.StackName'
+        DBName: !Ref 'AWS::StackName'
+        DBMasterUserPassword: !Ref DBMasterUserPassword
+        DBMultiAZ: false
+      TemplateURL: 'https://s3-eu-west-1.amazonaws.com/widdix-aws-cf-templates-releases-eu-west-1/v6.15.0/state/rds-postgres.yaml'
