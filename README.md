@@ -59,3 +59,7 @@ curl http://$InstanceAPublicIpAddressPrivate
 ```
 
 > Hint: You need to create a peeringconnection and add a route table entry to each of the 8 route tables involved.
+
+## More Labs
+
+We offer AWS workshops tailored to your needs. See [widdix/learn-*](https://github.com/widdix?q=learn-) for more labs.
